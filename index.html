@@ -461,6 +461,69 @@ drawBg();updPanels();requestAnimationFrame(loop);
 window.__gtb={fire:fireEvent,chars:CHARS,R,frames:()=>frames,pos:o=>{const c=CHARS.find(x=>x.id===o)||(o==='roomba'?R:null);const s=P(c.i,c.j);return {x:s[0]/LW,y:(s[1]-9)/LH};},eat:id=>{const cb=CABLES.find(c=>c.id===id);cb.eaten=true;cb.t=.5;cb.since=now;applyCable(cb,true);},release:releaseRoomba};
 </script>
 <script>
+// ---------- voices (v3) ----------
+// Real voice clips for Unity, Charlie and Miles. Files live next to index.html in voices/.
+// vo(event,opts) picks a random clip for the moment, respects sound on/off, cooldowns and never stacks voices.
+const VOICE_CLIPS={"unity_zombies":{"spk":"unity","text":"Charlie, Charlie, get rid of the zombies!","ev":"zombie_appears","f":"voices/crunchy/unity_zombies.mp3","fb":"voices/clean/unity_zombies.mp3","g":0.1},"unity_wifi":{"spk":"unity","text":"Who unplugged the wifi?","ev":"connection_lost","f":"voices/crunchy/unity_wifi.mp3","fb":"voices/clean/unity_wifi.mp3","g":0.1},"unity_starving":{"spk":"unity","text":"I'm starving down here!","ev":"hunger_low","f":"voices/crunchy/unity_starving.mp3","fb":"voices/clean/unity_starving.mp3","g":0.4},"unity_laugh":{"spk":"unity","text":"Ha ha ha! Oh no!","ev":"laugh","f":"voices/crunchy/unity_laugh.mp3","fb":"voices/clean/unity_laugh.mp3","g":0.0},"unity_coffee":{"spk":"unity","text":"Coffee! Sweet, sweet coffee!","ev":"coffee_refill","f":"voices/crunchy/unity_coffee.mp3","fb":"voices/clean/unity_coffee.mp3","g":0.0},"unity_mission_start":{"spk":"unity","text":"Okay team, new mission. Nobody touch anything.","ev":"mission_start","f":"voices/crunchy/unity_mission_start.mp3","fb":"voices/clean/unity_mission_start.mp3","g":0.0},"unity_roomba_music":{"spk":"unity","text":"Who keeps playing the Roomba song?","ev":"roomba_music_stuck","f":"voices/crunchy/unity_roomba_music.mp3","fb":"voices/clean/unity_roomba_music.mp3","g":0.0},"unity_message":{"spk":"unity","text":"Ooh, a new message!","ev":"new_message","f":"voices/crunchy/unity_message.mp3","fb":"voices/clean/unity_message.mp3","g":0.0},"charlie_works":{"spk":"charlie","text":"It works on my machine.","ev":"debugging","f":"voices/crunchy/charlie_works.mp3","fb":"voices/clean/charlie_works.mp3","g":0.2},"charlie_feature":{"spk":"charlie","text":"That's not a bug. That's a feature.","ev":"bug_found","f":"voices/crunchy/charlie_feature.mp3","fb":"voices/clean/charlie_feature.mp3","g":0.8},"charlie_roomba_cables":{"spk":"charlie","text":"The Roomba ate the cables. Again.","ev":"roomba_eats_cable","f":"voices/crunchy/charlie_roomba_cables.mp3","fb":"voices/clean/charlie_roomba_cables.mp3","g":0.5},"charlie_mission_failed":{"spk":"charlie","text":"Mission failed. I'm blaming the Roomba.","ev":"mission_failed","f":"voices/crunchy/charlie_mission_failed.mp3","fb":"voices/clean/charlie_mission_failed.mp3","g":0.6},"charlie_banned":{"spk":"charlie","text":"Banned! The Roomba filed a complaint.","ev":"player_banned","f":"voices/crunchy/charlie_banned.mp3","fb":"voices/clean/charlie_banned.mp3","g":0.2},"charlie_roomba_music":{"spk":"charlie","text":"I can't turn it off. The Roomba song has admin rights.","ev":"roomba_music_stuck","f":"voices/crunchy/charlie_roomba_music.mp3","fb":"voices/clean/charlie_roomba_music.mp3","g":0.3},"charlie_low_health":{"spk":"charlie","text":"Low health. Try turning yourself off and on again.","ev":"low_health","f":"voices/crunchy/charlie_low_health.mp3","fb":"voices/clean/charlie_low_health.mp3","g":0.3},"charlie_zombie":{"spk":"charlie","text":"Zombie detected. Deleting... the wrong file.","ev":"zombie_appears","f":"voices/crunchy/charlie_zombie.mp3","fb":"voices/clean/charlie_zombie.mp3","g":0.0},"charlie_coffee":{"spk":"charlie","text":"Coffee refilled. Productivity up three percent.","ev":"coffee_refill","f":"voices/crunchy/charlie_coffee.mp3","fb":"voices/clean/charlie_coffee.mp3","g":0.6},"charlie_message":{"spk":"charlie","text":"New message. It's probably the Roomba.","ev":"new_message","f":"voices/crunchy/charlie_message.mp3","fb":"voices/clean/charlie_message.mp3","g":0.4},"charlie_hunger":{"spk":"charlie","text":"Error four oh four. Snacks not found.","ev":"hunger_low","f":"voices/crunchy/charlie_hunger.mp3","fb":"voices/clean/charlie_hunger.mp3","g":0.5},"miles_main":{"spk":"miles","text":"I just pushed to main. On a Friday.","ev":"push_code","f":"voices/crunchy/miles_main.mp3","fb":"voices/clean/miles_main.mp3","g":0.8},"miles_spaces":{"spk":"miles","text":"Spaces, obviously.","ev":"debugging","f":"voices/crunchy/miles_spaces.mp3","fb":"voices/clean/miles_spaces.mp3","g":0.3},"miles_mission_start":{"spk":"miles","text":"Mission accepted. Somebody wake up Charlie.","ev":"mission_start","f":"voices/crunchy/miles_mission_start.mp3","fb":"voices/clean/miles_mission_start.mp3","g":0.2},"miles_mission_failed":{"spk":"miles","text":"Mission failed. I've already filed a report.","ev":"mission_failed","f":"voices/crunchy/miles_mission_failed.mp3","fb":"voices/clean/miles_mission_failed.mp3","g":0.1},"miles_banned":{"spk":"miles","text":"You are banned. I keep the records.","ev":"player_banned","f":"voices/crunchy/miles_banned.mp3","fb":"voices/clean/miles_banned.mp3","g":0.3},"miles_ban_lifted":{"spk":"miles","text":"Ban lifted. Try to behave this time.","ev":"ban_lifted","f":"voices/crunchy/miles_ban_lifted.mp3","fb":"voices/clean/miles_ban_lifted.mp3","g":0.4},"miles_hunger":{"spk":"miles","text":"There's pizza in the server rack. Don't ask.","ev":"hunger_low","f":"voices/crunchy/miles_hunger.mp3","fb":"voices/clean/miles_hunger.mp3","g":0.3},"miles_zombie":{"spk":"miles","text":"Relax. It's just a zombie with good uptime.","ev":"zombie_appears","f":"voices/crunchy/miles_zombie.mp3","fb":"voices/clean/miles_zombie.mp3","g":0.3},"miles_roomba":{"spk":"miles","text":"The Roomba has more commits than Charlie.","ev":"roomba_eats_cable","f":"voices/crunchy/miles_roomba.mp3","fb":"voices/clean/miles_roomba.mp3","g":0.2},"unity_charlie_bit":{"spk":"unity","text":"Ouch! Charlie bit me!","ev":"poke_charlie","f":"voices/crunchy/unity_charlie_bit.mp3","fb":"voices/clean/unity_charlie_bit.mp3","g":0.0}};
+const VOICE_EVENTS={};for(const k in VOICE_CLIPS){const e=VOICE_CLIPS[k].ev;(VOICE_EVENTS[e]||(VOICE_EVENTS[e]=[])).push(k);}
+const VOICE_CD={zombie_appears:18,zombie_backup:18,connection_lost:25,hunger_low:45,laugh:14,coffee_refill:12,mission_start:0,mission_failed:0,roomba_music_stuck:15,
+ new_message:20,player_banned:8,ban_lifted:8,low_health:45,roomba_eats_cable:22,debugging:5,bug_found:5,push_code:12,poke_charlie:5,tap_unity:5,tap_miles:5,tap_charlie:5};
+const vstate={bufs:{},loading:{},last:{},lastClip:{},src:null,busyUntil:0,queued:null,recent:[],failed:{}};
+function voSpeaker(spk){return spk==='unity'?U:spk==='charlie'?CH:spk==='miles'?MI:null;}
+function voLoad(k){if(!AC||vstate.bufs[k]||vstate.loading[k]||vstate.failed[k]>=2)return;const c=VOICE_CLIPS[k];vstate.loading[k]=true;
+ const tryUrl=(url,fallback)=>fetch(url).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+  .then(ab=>new Promise((res,rej)=>{const p=AC.decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);}))
+  .then(b=>{vstate.bufs[k]=b;vstate.loading[k]=false;})
+  .catch(()=>{if(fallback)return tryUrl(fallback,null);vstate.loading[k]=false;vstate.failed[k]=(vstate.failed[k]||0)+1;});
+ tryUrl(c.f,c.fb&&c.fb!==c.f?c.fb:null);}
+function voPreload(){if(!AC)return;let i=0;for(const k in VOICE_CLIPS){setTimeout(()=>voLoad(k),120*i++);}}
+function voStop(){if(vstate.src){try{vstate.src.stop();}catch(e){}vstate.src=null;}vstate.busyUntil=0;vstate.queued=null;}
+function voBusy(){return AC&&AC.currentTime<vstate.busyUntil;}
+// opts: {only:[clipKeys], speaker:'unity'|..., queue:true (wait up to 2.5s if another voice is talking), force:true (ignore event cooldown), bubble:false}
+function vo(ev,opts){const r=vo2(ev,opts);if(!r&&window.__voSkip)window.__voSkip.push({ev,busy:voBusy(),t:Math.round(performance.now()/100)/10});return r;}
+function vo2(ev,opts){opts=opts||{};if(!AC||!soundOn||document.visibilityState==='hidden')return false;
+ const t=performance.now()/1000;
+ if(opts.interrupt&&vstate.src){try{vstate.src.stop();}catch(e){}vstate.src=null;vstate.busyUntil=0;}
+ if(!opts.force&&vstate.last[ev]&&t-vstate.last[ev]<(VOICE_CD[ev]!=null?VOICE_CD[ev]:10))return false;
+ vstate.recent=vstate.recent.filter(x=>t-x<60);if(vstate.recent.length>=12&&!opts.force)return false;
+ let pool=(opts.only||VOICE_EVENTS[ev]||[]).filter(k=>VOICE_CLIPS[k]&&(!opts.speaker||VOICE_CLIPS[k].spk===opts.speaker));if(!pool.length)return false;
+ const ready=pool.filter(k=>vstate.bufs[k]);pool.forEach(voLoad);if(!ready.length)return false;
+ let cand=ready.length>1?ready.filter(k=>k!==vstate.lastClip[ev]):ready;const k=cand[Math.floor(rnd()*cand.length)];
+ if(voBusy()){const wait=vstate.busyUntil-AC.currentTime;if(opts.queue&&wait<2.5&&!vstate.queued){vstate.queued={ev,opts:Object.assign({},opts,{queue:false,only:[k]})};vstate.last[ev]=t;setTimeout(()=>{const q=vstate.queued;vstate.queued=null;if(q)vo2(q.ev,Object.assign(q.opts,{force:true}));},wait*1000+250);return true;}return false;}
+ const c=VOICE_CLIPS[k],b=vstate.bufs[k];
+ try{const s=AC.createBufferSource(),g=AC.createGain();g.gain.value=1.0*Math.pow(10,(c.g||0)/20);s.buffer=b;s.connect(g);g.connect(master);s.start();vstate.src=s;s.onended=()=>{if(vstate.src===s)vstate.src=null;};}catch(e){return false;}
+ vstate.busyUntil=AC.currentTime+b.duration+0.7;vstate.last[ev]=t;vstate.lastClip[ev]=k;vstate.recent.push(t);window.__voLog&&window.__voLog.push({ev,k,t:Math.round(t*10)/10});
+ const who=voSpeaker(c.spk);if(who&&opts.bubble!==false){who.speech={text:c.text,until:now+b.duration+1.2};who.nextSpeak=now+6+rnd()*6;}
+ return k;}
+window.__vo={clips:VOICE_CLIPS,events:VOICE_EVENTS,state:vstate,play:vo,preload:voPreload};
+// ---- hooks into the v1 basement ----
+(function(){
+ const _setSound=setSound;setSound=function(on){_setSound(on);if(on){voPreload();}else voStop();};
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')voStop();});
+ const _spawn=spawnZombie;spawnZombie=function(){const had=!!Z;_spawn();if(!had&&Z){vo('zombie_appears',{only:['unity_zombies'],bubble:false});
+  setTimeout(()=>{if(Z&&!Z.dying)vo('zombie_backup',{only:['charlie_zombie','miles_zombie'],queue:true});},2900);}};
+ const _apply=applyCable;applyCable=function(cb,eaten){_apply(cb,eaten);if(!eaten)return;
+  if(cb.id==='eth')setTimeout(()=>vo('connection_lost',{queue:true}),700);
+  else setTimeout(()=>{if(!vo('roomba_eats_cable',{queue:true})&&cb.id==='charger')vo('laugh');},700);};
+ for(const e of EVENTS){const run=e.run;
+  if(e.id==='push')e.run=function(){run.call(this);setTimeout(()=>vo('push_code'),200);};
+  if(e.id==='wifi')e.run=function(){run.call(this);vo('connection_lost',{bubble:true});};
+  if(e.id==='mirror')e.run=function(){run.call(this);setTimeout(()=>vo('laugh',{queue:true}),2200);};}
+ // tapping characters: Charlie sometimes bites Unity
+ let pokes=[];
+ const _show=showThought;showThought=function(o){_show(o);
+  if(o===CH){const t=performance.now()/1000;pokes=pokes.filter(x=>t-x<6);pokes.push(t);
+   const unityPlayer=typeof window.v3me==='function'&&window.v3me()==='Unity';
+   if(pokes.length>=3||(unityPlayer&&rnd()<.3)){if(vo('poke_charlie',{only:['unity_charlie_bit'],force:pokes.length>=3,interrupt:true}))charlieBites();pokes=[];return;}
+   vo('tap_charlie',{only:['charlie_works','charlie_feature']});}
+  else if(o===MI)vo('tap_miles',{only:['miles_spaces','miles_main']});
+  else if(o===U)vo('tap_unity',{only:['unity_laugh','unity_coffee']});};
+ function charlieBites(){glitch(.25);CH.speech={text:'*chomp*',until:now+1.6};U.status='Bitten by Charlie. Again.';U.needs.sanity=clamp(U.needs.sanity-8,0,100);
+  setTimeout(()=>{U.speech={text:'Ouch! Charlie bit me!',until:now+2.6};},50);setTimeout(()=>{CH.speech={text:'That was a feature.',until:now+2.4};},2100);}
+ window.__vo.bite=charlieBites;
+})();
+</script>
+<script>
 (function(){
 'use strict';
 const QS=new URLSearchParams(location.search);
@@ -523,11 +586,11 @@ function ingest(m,live){
  switch(d.t){
  case 'note':{if(eaten.has(m.id))break;const x=String(d.x||'').slice(0,160).trim();if(!x)break;notes.set(m.id,{id:m.id,t,w,x,ghost:!!d.gh,fresh:live});notesDirty=true;saveNotes();
   addFeed(t,d.gh?w+' (banned) sent a message from the void':w+' stuck a note on the wall');
-  if(live&&w!==me){banner('New sticky note from '+w);bleep(900);if(rnd()<.5)say(CH,w+' left a note. I read it. Twice.');}break;}
+  if(live&&w!==me){banner('New sticky note from '+w);bleep(900);if(!vo('new_message',{queue:true})&&rnd()<.5)say(CH,w+' left a note. I read it. Twice.');}break;}
  case 'eat':{const id=String(d.id||'');eaten.add(id);if(notes.has(id)){notes.delete(id);notesDirty=true;}saveNotes();addFeed(t,w+' fed a note to the Roomba');if(live)R.speech={text:'NOM (paper)',until:now+1.6};break;}
  case 'join':case 'hb':{p.h=num(d.h);p.f=num(d.f);if(d.t==='join')addFeed(t,w+' entered the basement');break;}
  case 'work':{const s=d.m|0,n=clamp(d.n|0,1,20);if(t>missEnd(s)+20||t<s*SLOT-20)break;work[s]=(work[s]||0)+n;const c=contrib[s]||(contrib[s]={});c[w]=(c[w]||0)+n;break;}
- case 'ban':{const u=+d.u;if(!(u>t)||u-t>900)break;bans[w]={until:u,r:String(d.r||'').slice(0,140),t,bailers:new Set()};addFeed(t,w+' got BANNED for '+fmtDur(u-t)+': '+bans[w].r,'ban');if(live&&w!==me){banner(w+' got banned from the basement!');glitch(.5);}break;}
+ case 'ban':{const u=+d.u;if(!(u>t)||u-t>900)break;bans[w]={until:u,r:String(d.r||'').slice(0,140),t,bailers:new Set()};addFeed(t,w+' got BANNED for '+fmtDur(u-t)+': '+bans[w].r,'ban');if(live&&w!==me){banner(w+' got banned from the basement!');glitch(.5);vo('player_banned',{queue:true});}break;}
  case 'bail':{const who=d.who,b=bans[who];if(!HUM.includes(who)||!b||b.bailers.has(w)||w===who||t>b.until)break;b.bailers.add(w);b.until-=45;addFeed(t,w+' bribed the Roomba: '+who+"'s ban is 45 seconds shorter",'good');if(live)banner(w+' bailed out '+who);break;}
  case 'chaos':{const ev=EVENTS.find(x=>x.id===d.e);if(!ev)break;addFeed(t,w+' caused chaos: '+ev.text,'chaos');if(live&&w!==me){banner(w+' pressed the chaos button');fireEvent(ev.id);nextEvent=now+18;}break;}
  }}
@@ -557,7 +620,7 @@ const REASONS={health:['Health hit zero. The Roomba filed a complaint and HR agr
  chaos:['Chaos license revoked. Too much chaos, even for this basement.']};
 function banInfo(w){const b=bans[w];let until=b?b.until:0,r=b?b.r:'';if(w===me){const l=LS.get('ban_'+me,null);if(l&&l.until>until&&!(b&&Math.abs(b.t-l.start)<30)){until=l.until;r=l.r;}}return until>snow()?{until,r}:null;}
 let voidUsed=false,wasBanned=false;
-function banMe(kind,dur){if(!me||banInfo(me))return;const r=pick(REASONS[kind]),st=Math.round(snow()),u=st+dur;LS.set('ban_'+me,{until:u,r,start:st});voidUsed=false;publish({t:'ban',u,r,d:dur});glitch(1.2);noise(.4);tone(110,.6,'sawtooth',.07);banner(me+' got BANNED');}
+function banMe(kind,dur){if(!me||banInfo(me))return;const r=pick(REASONS[kind]),st=Math.round(snow()),u=st+dur;LS.set('ban_'+me,{until:u,r,start:st});voidUsed=false;publish({t:'ban',u,r,d:dur});glitch(1.2);noise(.4);tone(110,.6,'sawtooth',.07);banner(me+' got BANNED');ST.pendingReset=true;saveST();setTimeout(()=>vo('player_banned',{force:true,interrupt:true}),700);}
 const bannedMe=()=>!!(me&&banInfo(me));
 const canPlay=()=>started&&!!me&&!spectator&&!bannedMe();
 const visible=()=>document.visibilityState!=='hidden';
@@ -575,6 +638,7 @@ function nudge(){if(!started)return;if(!me||spectator)toast('Pick who you are fi
 const MT=()=>{const t=snow(),s=slotOf(t);return {t,s,m:mFor(s),active:t<missEnd(s),done:isDone(s)};};
 function live(id){const x=MT();return x.m.id===id&&x.active&&!x.done;}
 window.v2vendLocked=()=>live('vend');
+window.v3me=()=>(started&&!spectator)?me:null;
 function rmStuck(){const x=MT();return x.m.id==='rmusic'&&!x.done;}
 
 // ---------- overrides of v1 functions ----------
@@ -583,10 +647,10 @@ const _play=playRoomba;playRoomba=function(){if(rmSrc)return;_play();};
 let rmSrc=null;
 function rmSync(){const want=rmStuck()&&soundOn&&AC&&roombaBuf;if(want&&!rmSrc){try{rmSrc=AC.createBufferSource();const g=AC.createGain();g.gain.value=.45;rmSrc.buffer=roombaBuf;rmSrc.loop=true;rmSrc.connect(g);g.connect(master);rmSrc.start();}catch(e){rmSrc=null;}}else if(!want&&rmSrc){try{rmSrc.stop();}catch(e){}rmSrc=null;}}
 const _bS=bS.onclick,_bM=bM.onclick;let muteTries=0;
-bS.onclick=()=>{if(rmStuck()&&soundOn){muteTries++;if(muteTries<3){banner(muteTries===1?'Mute failed. The Roomba owns the speakers now.':'Mute failed again. The Roomba says: no.');tone(120,.3,'sawtooth',.06);return;}toast('Fine. Muted. The Roomba is offended.');}muteTries=0;_bS();};
+bS.onclick=()=>{if(rmStuck()&&soundOn){muteTries++;if(muteTries<3){banner(muteTries===1?'Mute failed. The Roomba owns the speakers now.':'Mute failed again. The Roomba says: no.');tone(120,.3,'sawtooth',.06);vo('roomba_music_stuck',{only:['charlie_roomba_music'],force:muteTries===1});return;}toast('Fine. Muted. The Roomba is offended.');}muteTries=0;_bS();};
 bM.onclick=()=>{if(rmStuck()){banner('The music is not the problem. The Roomba is. Unplug it.');return;}_bM();};
 const chaosT=[];let lastChaosPub=0;
-$('bChaos').onclick=()=>{fireEvent();nextEvent=now+18+rnd()*10;const id=lastEv;if(!canPlay())return;const tt=Date.now()/1000;chaosT.push(tt);while(chaosT.length&&tt-chaosT[0]>20)chaosT.shift();
+$('bChaos').onclick=()=>{fireEvent();nextEvent=now+18+rnd()*10;const id=lastEv;if(rnd()<.35)setTimeout(()=>vo('laugh'),1400);if(!canPlay())return;const tt=Date.now()/1000;chaosT.push(tt);while(chaosT.length&&tt-chaosT[0]>20)chaosT.shift();
  if(chaosT.length===8)toast('The Roomba is drafting a complaint about all this chaos...');if(chaosT.length>=12){chaosT.length=0;banMe('chaos',60);return;}
  if(tt-lastChaosPub>30){lastChaosPub=tt;publish({t:'chaos',e:id});}};
 
@@ -595,12 +659,12 @@ const SNACKS=['a stroopwafel','kerupuk (Dani approved)','a bagel (Tom approved)'
 const WEIRD=[['a USB stick. It was not food.',-3,4],['a zombie finger. Do not ask.',0,8],['a fortune cookie: "git push --force is not self-care"',0,6]];
 const cd={snack:0,coffee:0,nap:0};
 function youSay(t){$('youMsg').textContent=t;if(me==='Unity'&&speaking()<3)say(U,t.length>60?t.slice(0,58)+'...':t,3);}
-function snack(){if(!canPlay()){nudge();return;}if(live('vend')){toast('The vending machine only dispenses whispers right now. Exorcise it (mission).');R.speech={text:'boo',until:now+1};return;}
+function snack(){if(!canPlay()){nudge();return;}if(live('vend')){toast('The vending machine only dispenses whispers right now. Exorcise it (mission).');R.speech={text:'boo',until:now+1};vo('hunger_low',{only:['charlie_hunger']});return;}
  const w=Date.now()/1000;if(w<cd.snack){toast('Still chewing. '+Math.ceil(cd.snack-w)+'s');return;}cd.snack=w+30;
  if(rnd()<.12){const x=pick(WEIRD);ST.health=clamp(ST.health+x[1],0,100);ST.hunger=clamp(ST.hunger+x[2],0,100);youSay('The vending machine gave you '+x[0]);glitch(.3);}
  else{const s=pick(SNACKS);ST.hunger=clamp(ST.hunger+22,0,100);ST.health=clamp(ST.health+3,0,100);youSay('You ate '+s+'. Hunger +22.');}tone(880,.06,'square',.04);tone(660,.08,'square',.04,.07);saveST();updYou();}
 function coffee(){if(!canPlay()){nudge();return;}if(live('coffee')){toast('The coffee machine is empty. That is literally the mission.');return;}const w=Date.now()/1000;if(w<cd.coffee){toast('Your hands are still shaking. '+Math.ceil(cd.coffee-w)+'s');return;}cd.coffee=w+20;
- ST.coffee=clamp(ST.coffee+30,0,100);ST.health=clamp(ST.health+2,0,100);ST.hunger=clamp(ST.hunger-2,0,100);youSay(ST.coffee>=70?'Coffee! Caffeinated: your mission taps count double.':'Coffee. Coffee +30.');saveST();updYou();}
+ ST.coffee=clamp(ST.coffee+30,0,100);ST.health=clamp(ST.health+2,0,100);ST.hunger=clamp(ST.hunger-2,0,100);youSay(ST.coffee>=70?'Coffee! Caffeinated: your mission taps count double.':'Coffee. Coffee +30.');vo('coffee_refill',me==='Unity'?{only:['unity_coffee']}:{});saveST();updYou();}
 function nap(){if(!canPlay()){nudge();return;}const w=Date.now()/1000;if(w<cd.nap){toast('You literally just napped. '+Math.ceil(cd.nap-w)+'s');return;}cd.nap=w+90;ST.health=clamp(ST.health+14,0,100);ST.coffee=clamp(ST.coffee-10,0,100);youSay(pick(['You napped on the couch. Miles drew on your face. Health +14.','Power nap complete. You dreamed in 8-bit. Health +14.','You napped. The Roomba guarded you. Or watched you. Health +14.']));saveST();updYou();}
 $('bSnack').onclick=snack;$('bCoffee').onclick=coffee;$('bNap').onclick=nap;
 $('mBtn').onclick=()=>doWork(1);
@@ -687,15 +751,17 @@ let toastT=0;function toast(t){const el=$('toast');el.textContent=t;el.classList
 let curSlot=null,uiT=0,hbT=0;const finalized=new Set(),celebrated=new Set(),present={};let warnH=false,warnF=false;
 function hb(){if(canPlay())publish({t:'hb',h:Math.round(ST.health),f:Math.round(ST.hunger)});hbT=0;}
 function startMission(m,s,fresh){if(!fresh)return;banner('NEW MISSION: '+m.title);jingle();glitch(.4);
- if(m.id==='zombie')spawnZombie();if(m.id==='catch'){if(R.state==='dock')releaseRoomba();R.speech={text:'catch me if you can',until:now+2};}if(m.id==='push'){say(MI,'...was that main?');ciT=9;}if(m.id==='tom')say(MI,'Tom, we can hear you chewing.');if(m.id==='rmusic')R.speech={text:'round and round and round',until:now+3};}
+ if(m.id==='zombie')spawnZombie();if(m.id==='catch'){if(R.state==='dock')releaseRoomba();R.speech={text:'catch me if you can',until:now+2};}if(m.id==='push'){say(MI,'...was that main?');ciT=9;}if(m.id==='tom')say(MI,'Tom, we can hear you chewing.');if(m.id==='rmusic')R.speech={text:'round and round and round',until:now+3};
+ setTimeout(()=>{if(m.id==='zombie')return;if(m.id==='rmusic')vo('roomba_music_stuck',{only:['unity_roomba_music'],force:true,queue:true});else if(m.id==='wifi')vo('connection_lost',{force:true,queue:true});else if(m.id==='push')vo('push_code',{force:true,queue:true});else vo('mission_start',{queue:true});},900);}
 function celebrate(s){const m=mFor(s),c=(contrib[s]||{})[me]||0;banner('MISSION COMPLETE: '+m.done);jingle();setTimeout(jingle,350);glitch(.3);addFeed(snow(),'Mission complete: '+m.title+' (MVP '+mvp(s)+')','good');
- if(m.id==='zombie'&&Z)_kill();if(m.id==='catch')R.roams=1;if(m.id==='wifi')wifiT=0;say(CH,pick(['Team effort. Mostly the Roomba.','Fixed. I am adding this to my CV.','That was beautiful. Nobody touch anything.']));
+ if(m.id==='zombie'&&Z)_kill();if(m.id==='catch')R.roams=1;if(m.id==='wifi')wifiT=0;if(!(m.id==='coffee'&&vo('coffee_refill',{only:['charlie_coffee'],force:true,queue:true})))say(CH,pick(['Team effort. Mostly the Roomba.','Fixed. I am adding this to my CV.','That was beautiful. Nobody touch anything.']));
  if(canPlay()&&c>0){ST.health=clamp(ST.health+15,0,100);ST.hunger=clamp(ST.hunger+12,0,100);ST.coffee=clamp(ST.coffee+10,0,100);ST.strikes=0;toast('Mission complete! You did '+c+' fixes. Health +15, hunger +12.');saveST();}
  else if(canPlay()&&(present[s]||0)>=45)toast('Mission complete without you. The Roomba noticed.');}
-function finalize(s){finalized.add(s);if(isDone(s))return;const m=mFor(s);addFeed(missEnd(s),'Mission failed: '+m.title,'ban');banner('MISSION FAILED: '+m.fail);tone(160,.5,'sawtooth',.06);glitch(.8);
+function finalize(s){finalized.add(s);if(isDone(s))return;const m=mFor(s);addFeed(missEnd(s),'Mission failed: '+m.title,'ban');banner('MISSION FAILED: '+m.fail);tone(160,.5,'sawtooth',.06);glitch(.8);setTimeout(()=>vo('mission_failed',{force:true,queue:true}),600);
  if(canPlay()&&(present[s]||0)>=45){const c=(contrib[s]||{})[me]||0;ST.health=clamp(ST.health-20,0,100);ST.hunger=clamp(ST.hunger-10,0,100);
   if(c===0){ST.strikes++;if(ST.strikes>=2){ST.strikes=0;saveST();banMe('ignore',120);return;}toast('Failed, and you did nothing. Strike 1 of 2. Health -20.');}else{ST.strikes=0;toast('Mission failed. Health -20, hunger -10. At least you tried.');}saveST();}}
 window.v2tick=function(dt){const t=snow(),s=slotOf(t),m=mFor(s),act=t<missEnd(s);
+ {const bn=bannedMe();if(me&&!bn&&(ST.pendingReset||wasBanned)){ST.pendingReset=false;vo('ban_lifted',{force:true,interrupt:true});ST.health=Math.max(ST.health,60);ST.hunger=Math.max(ST.hunger,60);ST.coffee=Math.max(ST.coffee,50);ST.strikes=0;saveST();toast('Your ban is over. Welcome back. The Roomba is watching.');addFeed(t,me+' is back from the ban','good');hb();}wasBanned=bn;}
  if(curSlot!==s){const fresh=curSlot!==null;curSlot=s;if(!act)finalized.add(s);if(isDone(s))celebrated.add(s);startMission(m,s,fresh&&act);}
  if(ready){for(const k of [s-1,s])if(!finalized.has(k)&&t>=missEnd(k))finalize(k);if(act&&isDone(s)&&!celebrated.has(s)){celebrated.add(s);celebrate(s);}}
  const playing=canPlay()&&visible();
@@ -711,15 +777,13 @@ window.v2tick=function(dt){const t=snow(),s=slotOf(t),m=mFor(s),act=t<missEnd(s)
  const b=bannedMe();
  if(playing){ST.hunger-=dt/15;ST.coffee-=dt/25;if(ST.hunger<20)ST.health-=dt/6;else if(ST.hunger>60&&ST.health<100)ST.health+=dt/30;if(act&&!isDone(s)&&m.id==='zombie')ST.health-=dt/10;
   for(const k of ['health','hunger','coffee'])ST[k]=clamp(ST[k],0,100);
-  if(ST.hunger<25&&!warnF){warnF=true;toast('Your tummy is making dial-up noises. Eat a snack.');}if(ST.hunger>35)warnF=false;
-  if(ST.health<25&&!warnH){warnH=true;toast('Health is low. Eat, nap, or finish a mission.');}if(ST.health>35)warnH=false;
+  if(ST.hunger<25&&!warnF){warnF=true;toast('Your tummy is making dial-up noises. Eat a snack.');vo('hunger_low',me==='Unity'?{only:['unity_starving']}:{only:['charlie_hunger','miles_hunger']});}if(ST.hunger>35)warnF=false;
+  if(ST.health<25&&!warnH){warnH=true;toast('Health is low. Eat, nap, or finish a mission.');if(ST.health>=1)vo('low_health',{queue:true});}if(ST.health>35)warnH=false;
   if(ST.health<1)banMe('health',240);else if(ST.hunger<1)banMe('hunger',180);
   hbT+=dt;if(hbT>150)hb();}
  uiT+=dt;if(uiT>.25){uiT=0;
   if(b){const i=banInfo(me);$('banOv').hidden=false;$('banWho').textContent=me+', you have been banned from the Global Tribe Basement.';$('banReason').textContent=i.r;$('banClock').textContent=fmtDur(i.until-t);}
   else if(!$('banOv').hidden)$('banOv').hidden=true;
-  if(wasBanned&&!b){ST.health=Math.max(ST.health,60);ST.hunger=Math.max(ST.hunger,60);ST.coffee=Math.max(ST.coffee,50);ST.strikes=0;saveST();toast('Your ban is over. Welcome back. The Roomba is watching.');addFeed(t,me+' is back from the ban','good');hb();}
-  wasBanned=b;
   if(me&&started)LS.set('seen_'+me,Date.now()/1000);saveST();
   updMission();updYou();updPres();if(notesDirty){notesDirty=false;renderNotes();}if(feedDirty||Math.floor(t)%15===0){feedDirty=false;renderFeed();}}};
 document.addEventListener('visibilitychange',()=>{if(visible()&&canPlay()&&hbT>60)hb();if(!visible())flush();});
