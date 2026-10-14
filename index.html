@@ -70,6 +70,24 @@ body{padding:10px 10px 40px}
 #start .picks button.cur{outline:3px solid #fff}
 #start .go{display:none}
 #start.known .go{display:block}
+#start{overflow:auto}
+#start .sp{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+#start .sp[hidden]{display:none}
+#start .guestgo{font:bold 12px ui-monospace,Menlo,monospace;letter-spacing:1px;background:#f4efe2;color:#111;border:3px solid #111;box-shadow:3px 3px 0 #ff3fd1;padding:7px 12px;cursor:pointer}
+#start .go2{font:bold 14px ui-monospace,Menlo,monospace;letter-spacing:2px;background:#f4efe2;color:#111;border:3px solid #111;box-shadow:4px 4px 0 #ff3fd1;padding:9px 16px;cursor:pointer;animation:blink 1s steps(2) infinite}
+#start .go2:disabled{opacity:.5;animation:none;cursor:default}
+#gName{font:13px ui-monospace,Menlo,monospace;background:#0e0b1e;color:var(--ink);border:2px solid #ff3fd1;padding:7px 9px;width:min(260px,90%);text-align:center}
+.gseats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:min(440px,98%)}
+.gseats button{font:10px ui-monospace,Menlo,monospace;background:#17132a;color:var(--ink);border:2px solid #3a2d6e;padding:4px 5px;cursor:pointer;text-align:left;min-height:36px}
+.gseats button b{display:block;color:#3ff0e0;font-size:10px;letter-spacing:1px}
+.gseats button span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#d8d0ff}
+.gseats button.cur{border-color:#ffe14a;box-shadow:0 0 0 2px #ffe14a}
+.gseats button.taken{opacity:.55;cursor:default}.gseats button.taken b{color:#ff6a6a}
+.note.guest{outline:2px dashed #ff3fd1;outline-offset:-5px}
+.note .gt{display:inline-block;background:#ff3fd1;color:#fff;font-size:8px;font-weight:bold;padding:1px 3px;margin-right:4px;letter-spacing:1px;vertical-align:1px}
+.grow{display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:6px;align-items:center;padding:4px 0;border-top:1px dashed var(--line);font-size:11px}
+.grow .gn{color:#ff3fd1;font-weight:bold}.grow.free{color:var(--mut)}
+#gHead{font-size:11px;color:var(--mut);margin-bottom:4px}
 .mission{border-color:#7a2bd0}
 .mhead{display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;color:var(--y)}
 #mTimer{font-size:16px;font-weight:bold;color:var(--c)}
@@ -127,7 +145,7 @@ body{padding:10px 10px 40px}
 <div id="bubbles"></div>
 <div id="thought"></div>
 <div id="banner"></div>
-<div id="start"><div class="q">WHO ARE YOU?</div><div class="picks" id="picks"></div><small id="startSub">Tap your name to enter (sound on). Saved on this device.</small><button class="go" id="goSound">TAP TO START</button><button class="quiet" id="goQuiet">start without sound</button><button class="quiet" id="goLook">just looking</button></div>
+<div id="start"><div class="sp" id="crewPick"><div class="q">WHO ARE YOU?</div><div class="picks" id="picks"></div><small id="startSub">Tap your name to enter (sound on). Saved on this device.</small><button class="go" id="goSound">TAP TO START</button><button class="guestgo" id="goGuest">I&rsquo;M A GUEST &middot; PICK A SEAT</button><button class="quiet" id="goQuiet">start without sound</button><button class="quiet" id="goLook">just looking</button></div><div class="sp" id="gForm" hidden><div class="q">GUEST PASS</div><input id="gName" maxlength="16" placeholder="Your name (2 to 16 characters)" autocomplete="off" enterkeyhint="go"><div class="gseats" id="gSeatPick"></div><button class="go2" id="gGo">TAKE A SEAT</button><small id="gSub">Guests can sit, watch and leave notes on the wall. Missions are crew only.</small><button class="quiet" id="gBack">back</button></div></div>
 </div>
 <div class="controls">
 <button class="btn" id="bSound">Sound: off</button>
@@ -154,8 +172,9 @@ body{padding:10px 10px 40px}
 <section class="panel" id="wallP"><h2>THE BASEMENT WALL &middot; MESSAGES</h2>
 <div id="notes" class="notes"></div>
 <form id="noteForm" class="noteform" autocomplete="off"><input id="noteIn" maxlength="160" placeholder="Leave a sticky note for the Tribe&hellip;" enterkeyhint="send"><button class="btn" type="submit">Stick it</button></form>
-<p class="hint">Tap a note to feed it to the Roomba (it disappears for everyone).</p>
+<p class="hint">Crew: tap a note to feed it to the Roomba (it disappears for everyone). Guest notes have a pink GUEST tag.</p>
 </section>
+<section class="panel" id="guestP"><h2>GUEST SEATS &middot; VISITORS WELCOME</h2><div id="gHead"></div><div id="gList"></div><div class="controls"><button class="btn" id="gBtn">Sit as a guest</button></div><p class="hint">Not part of the crew? Grab a free seat, then leave a note on the wall. Seats free up when a guest leaves, after 5 minutes away, or after 45 minutes. Up to 120 characters a note, one note every 45 seconds, five an hour. Links get eaten by the Roomba.</p></section>
 <section class="panel"><h2>BASEMENT FEED</h2><div id="feed" class="feed"></div></section>
 <section class="panel"><h2>NEEDS (THE SIMS IN THE ROOM)</h2><div id="needs"></div></section>
 <section class="panel"><h2>JITSI MEET &middot; GLOBAL TRIBE</h2><div class="callhead" id="callhead">4 humans, 4 agents each. Someone is always yawning.</div><div id="call"></div></section>
@@ -577,14 +596,15 @@ const notes=new Map(),eaten=new Set(LS.get('eaten',[]));
 const pres={},bans={},feed=[];
 let notesDirty=true,feedDirty=true;
 function addFeed(t,txt,cls){feed.push({t,txt,cls:cls||''});if(feed.length>150)feed.splice(0,feed.length-150);feedDirty=true;}
-for(const n of LS.get('notes',[])){if(n&&n.id&&(HUM.includes(n.w)||AGENTS.includes(n.w))&&!eaten.has(n.id)&&Date.now()/1000-n.t<7*86400){notes.set(n.id,{id:n.id,t:n.t,w:n.w,x:String(n.x).slice(0,160),ghost:!!n.ghost&&!AGENTS.includes(n.w),ag:AGENTS.includes(n.w)});}}
-function saveNotes(){LS.set('notes',[...notes.values()].filter(n=>!String(n.id).startsWith('local-')).sort((a,b)=>b.t-a.t).slice(0,80).map(n=>({id:n.id,t:n.t,w:n.w,x:n.x,ghost:n.ghost})));LS.set('eaten',[...eaten].slice(-300));}
+for(const n of LS.get('notes',[])){if(n&&n.id&&n.w==='guest'&&n.gn&&!eaten.has(n.id)&&Date.now()/1000-n.t<7*86400){notes.set(n.id,{id:n.id,t:n.t,w:'guest',gn:String(n.gn).slice(0,17),x:String(n.x).slice(0,120),ghost:false,gu:true});continue;}
+ if(n&&n.id&&(HUM.includes(n.w)||AGENTS.includes(n.w))&&!eaten.has(n.id)&&Date.now()/1000-n.t<7*86400){notes.set(n.id,{id:n.id,t:n.t,w:n.w,x:String(n.x).slice(0,160),ghost:!!n.ghost&&!AGENTS.includes(n.w),ag:AGENTS.includes(n.w)});}}
+function saveNotes(){LS.set('notes',[...notes.values()].filter(n=>!String(n.id).startsWith('local-')).sort((a,b)=>b.t-a.t).slice(0,80).map(n=>n.gu?{id:n.id,t:n.t,w:'guest',gn:n.gn,x:n.x,gu:1}:{id:n.id,t:n.t,w:n.w,x:n.x,ghost:n.ghost}));LS.set('eaten',[...eaten].slice(-300));}
 function ingest(m,live){
  if(!m||!m.id)return;
  if(m.event==='open'||m.event==='keepalive'){if(m.time)setSkew(m.time);return;}
  if(m.event!=='message'||seen.has(m.id))return;seen.add(m.id);if(!m.local)lastId=m.id;
  let d;try{d=JSON.parse(m.message);}catch(e){return;}
- if(!d||d.g!=='gtb1')return;
+ if(!d||d.g!=='gtb1')return;if(d.w==='guest'){guestEv(m,d,live);return;}
  const ag=AGENTS.includes(d.w);
  if(!HUM.includes(d.w)&&!(ag&&d.t==='note'))return;
  const t=+m.time||snow(),w=d.w;
@@ -646,7 +666,7 @@ function doWork(n){if(!canPlay()){nudge();return;}const t=snow(),s=slotOf(t);if(
  tone(500+rnd()*500,.04,'square',.03);const m=mFor(s);if(taps%6===0){const who=m.id==='zombie'?U:m.id==='push'?MI:pick([CH,MI,U]);if(speaking()<2)say(who,pick(m.lines),2.6);}
  if(m.id==='union'&&taps%4===0)bleep(700);if(m.id==='catch'||m.id==='rmusic')R.shake=.3;
  if(pend>=12||isDone(s))flush();updMission(true);}
-function nudge(){if(!started)return;if(!me||spectator)toast('Pick who you are first (tap switch).');else if(bannedMe())toast('You are banned. The Roomba is very serious about this.');}
+function nudge(){if(!started)return;if(guestMode)toast('Guests cannot feed notes to the Roomba. Only the crew has that power.');else if(!me||spectator)toast('Crew: pick your name (tap switch). Visitors: grab a guest seat.');else if(bannedMe())toast('You are banned. The Roomba is very serious about this.');}
 const MT=()=>{const t=snow(),s=slotOf(t);return {t,s,m:mFor(s),active:t<missEnd(s),done:isDone(s)};};
 function live(id){const x=MT();return x.m.id===id&&x.active&&!x.done;}
 window.v2vendLocked=()=>live('vend');
@@ -685,50 +705,171 @@ $('mBtn').onclick=()=>doWork(1);
 window.v2click=function(lx,ly,best){const x=MT();
  if(best===R&&x.active&&!x.done&&(x.m.id==='catch'||x.m.id==='rmusic')){doWork(3);R.speech={text:pick(['HEY','beep?!','not the plug','catch me']),until:now+1};return true;}
  if(best&&best===Z&&x.active&&!x.done&&x.m.id==='zombie'){doWork(3);Z.speech={text:'quack?!',until:now+1};return true;}
+ {const gk=guestHit(lx,ly);if(gk>=0){if(!gseats[gk]&&!(started&&!spectator&&me)&&!seatedMe())gOpen(gk);else guestThought(gk);return true;}}
  if(best)return false;
  const v=P(.7,3.5,11);if(Math.hypot(lx-v[0],ly-v[1])<10){snack();return true;}
  const X=Math.round(lx-(OX-108)),Y=Math.round(ly-WT-((108-X)>>1));if(X>=38&&X<=78&&Y>=33&&Y<=47){$('wallP').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>$('noteIn').focus(),400);return true;}
  return false;};
 function drawCork(){lw(38,33,40,14,'#5a3a1e');lw(39,34,38,12,'#a87443');const arr=[...notes.values()].sort((a,b)=>b.t-a.t).slice(0,8);
- arr.forEach((n,i)=>{const X=41+(i%4)*9,Y=35+((i/4)|0)*6;lw(X,Y,6,5,n.ghost?'#2a2440':NCOL[n.w]);C.fillStyle='#e03030';LWP(X+3,Y);});if(!arr.length)txt('NOTES',47,38,'#5a3a1e',LWP);}
+ arr.forEach((n,i)=>{const X=41+(i%4)*9,Y=35+((i/4)|0)*6;lw(X,Y,6,5,n.ghost?'#2a2440':n.gu?GCOL:NCOL[n.w]);if(n.gu)lw(X,Y+4,6,1,'#ff3fd1');C.fillStyle='#e03030';LWP(X+3,Y);});if(!arr.length)txt('NOTES',47,38,'#5a3a1e',LWP);}
 function drawVending(){const lk=live('vend');box(0,3.0,.7,1.0,22,0,'#4a3a7a','#3a2a5a','#2a1e44');
  poly([P(.7,3.12,8),P(.7,3.72,8),P(.7,3.72,20),P(.7,3.12,20)],lk?(Math.floor(now*6)%2?'#0a2a10':'#164a20'):'#1a3a5a');
  if(!lk){const cols=['#ffe14a','#ff3fd1','#5ce07a','#ff8a1f','#3ff0e0','#c08040'];for(let r=0;r<3;r++)for(let q=0;q<3;q++){const s=P(.7,3.2+q*.18,10+r*3.5);rect(s[0],s[1],2,1,cols[(r*3+q)%6]);}}
  else{const s=P(.7,3.42,15);txt('BOO',s[0]-5,s[1]-2+Math.round(Math.sin(now*5)),'#7dffb0');}
  poly([P(.7,3.15,3),P(.7,3.7,3),P(.7,3.7,6),P(.7,3.15,6)],'#111');const b=P(.7,3.86,15);rect(b[0],b[1],1,1,'#ff3030');rect(b[0],b[1]+2,1,1,'#5ce07a');const t=P(.35,3.0,24);txt('SNAX',t[0]-6,t[1]-1,'#ffe14a');}
-window.v2items=function(items){items.push({k:-5,f:drawCork},{k:3.9,f:drawVending});};
+window.v2items=function(items){items.push({k:-5,f:drawCork},{k:3.9,f:drawVending});drawGuests(items);};
 window.v2overlay=function(){if(rmStuck()){const s=P(R.i,R.j);for(let n=0;n<3;n++){const yy=Math.round(s[1]-10-((now*12+n*7)%18)),xx=Math.round(s[0]+Math.sin(now*3+n*2)*5+n*3-3);rect(xx,yy,1,4,'#ffe14a');rect(xx-2,yy+3,2,2,'#ffe14a');rect(xx+1,yy,2,1,'#ffe14a');}}
- const x=MT();if(x.active&&!x.done&&missEnd(x.s)-x.t<30&&Math.floor(now*3)%2){C.fillStyle='#ff2a2a';C.fillRect(0,0,LW,2);C.fillRect(0,LH-2,LW,2);C.fillRect(0,0,2,LH);C.fillRect(LW-2,0,2,LH);}};
+ const x=MT();if(x.active&&!x.done&&missEnd(x.s)-x.t<30&&Math.floor(now*3)%2){C.fillStyle='#ff2a2a';C.fillRect(0,0,LW,2);C.fillRect(0,LH-2,LW,2);C.fillRect(0,0,2,LH);C.fillRect(LW-2,0,2,LH);}
+ drawGuestLabels();};
 window.v2tile=function(k,X,Y,w,h){const n=PEOPLE[k].name,b=banInfo(n);
  if(b){C.fillStyle='#ff2a2a';for(let q=0;q<h;q++){RWP(X+Math.round(q*w/h),Y+q);RWP(X+w-1-Math.round(q*w/h),Y+q);}rw(X+9,Y+7,27,7,'#000');txt('BANNED',X+10,Y+8,Math.floor(now*3)%2?'#ff4a4a':'#ffe14a',RWP);}
  else if(pres[n]&&snow()-pres[n].t<400&&Math.floor(now*1.5)%2){rw(X+40,Y+8,3,2,'#5ce07a');}};
 
+// ---------- guests (v4): visitors pick a guest seat and leave guest notes ----------
+// Guests are NOT crew: no presence, no missions, no bans, no stats. They publish with w:'guest' plus gid (random device id) and gn (name).
+// Seats are resolved the same way on every device from the ntfy order: first claim on a free seat wins.
+const GSEATS=[
+ {i:2.95,j:8.25,nm:'Front row, beanbag side',up:false},
+ {i:4.05,j:8.25,nm:'Front row, splash zone (Roomba lane)',up:true},
+ {i:5.15,j:8.25,nm:'Front row, couch side',up:false},
+ {i:8.45,j:2.5,nm:'Next to the Roomba dock',up:false},
+ {i:8.45,j:3.65,nm:'Zombie view',up:true},
+ {i:8.45,j:4.8,nm:'The wobbly chair',up:false,wobble:true}];
+const GTTL=FAST?40:300,GMAX=FAST?150:2700,GHB=FAST?12:110;
+const GCOL='#f4efe2',GSHIRT=['#ff6a6a','#5ce07a','#3ff0e0','#ffb020','#ff3fd1','#8a7aff'],GHAIR=['#141018','#e8d070','#7a3a1e','#ff6fb5','#3aa0ff','#c0c0c8','#5a2a7a'],GSKIN=['#f0c8a0','#c68a5a','#8a5a3a','#e6b088','#f4d6b8'];
+const GRESERVED=['dani','tom','dagmar','unity','charlie','miles','maya','simone','casper','roomba','zombie','admin','crew','agent','moderator','mod','sesame','roombaking'];
+const GLINES=['Is that Roomba wearing a crown?','I came for the hackathon. I stayed for the Roomba.','Nobody told me there would be a zombie.','Pretending I understand the stack traces.','Do I tip the Roomba?','This chair is warm. Who was here?','I can hear lettuce.'];
+const gseats=GSEATS.map(()=>null);
+const gLog={},gAll=[],gClaimT={};
+let GID=LS.get('gid',null);if(typeof GID!=='string'||!/^[a-z0-9]{6,16}$/.test(GID)){GID=Math.random().toString(36).slice(2,12).replace(/[^a-z0-9]/g,'x').padEnd(8,'q');LS.set('gid',GID);}
+let gName=LS.get('gname','');if(typeof gName!=='string')gName='';
+let guestMode=false,gPend=null,gWas=false,gHbT=0,gTick=0,gPick=null,gLastNote=LS.get('glast',0)||0;
+const gSan=s=>String(s==null?'':s).replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/[<>{}\[\]\\`|]/g,'').replace(/\s+/g,' ').trim();
+const gKey=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+function gReserved(n){const k=gKey(n).replace(/^(the|real|official|its|im|iam|mr|ms|dr)+/,'').replace(/(official|real|ai|bot|agent|irl|[0-9])+$/,'');return GRESERVED.includes(k)||GRESERVED.includes(k.replace(/s$/,''));}
+const gCut=(x,n)=>Array.from(x).slice(0,n).join('');
+function gNameIn(raw){let n=gCut(gSan(raw),16).trim();if(n.length<2)n='Guest';if(gReserved(n))n=('Not'+n).slice(0,16);return n;}
+function gText(raw){let x=gSan(raw);x=x.replace(/(https?:\/\/|www\.|discord\.gg\/|discord\.com\/invite)\S*/gi,'(link eaten by the Roomba)');return gCut(x,120).trim();}
+function gHash(s){let h=0;for(const ch of String(s))h=(Math.imul(h,31)+ch.charCodeAt(0))|0;return h>>>0;}
+function gPal(gid,k){const h=gHash(gid);return {h:GHAIR[h%GHAIR.length],s:GSKIN[(h>>>4)%GSKIN.length],e:'#1a1020',r:'#a04050',t:GSHIRT[k%GSHIRT.length],y:'#ffe14a',l:'#2a2860',k:'#111'};}
+const GUEST_UP=['..hhhhh..','.hhhhhhh.','.hsssssh.','.hsesesh.','.hsssssh.','.hssrssh.','..sssss..','.ttttttt.','ttttytttt','ttttytttt','sttttttts','.ttttttt.','.ttttttt.'];
+const seatOf=gid=>gseats.findIndex(o=>o&&o.gid===gid);
+const seatedMe=()=>guestMode&&seatOf(GID)>=0;
+function gExpire(t){for(let k=0;k<gseats.length;k++){const o=gseats[k];if(!o)continue;
+  const gone=t-o.last>GTTL,full=t-o.since>GMAX;if(gone||full){gseats[k]=null;addFeed(Math.min(t,gone?o.last+GTTL:o.since+GMAX),o.name+' (guest) '+(full&&!gone?'got politely evicted from seat '+(k+1)+' by the Roomba':'wandered off. Seat '+(k+1)+' is free'));}}}
+function guestEv(m,d,live){const t=+m.time||snow(),gid=String(d.gid||'');if(!/^[a-z0-9]{6,16}$/.test(gid))return;gExpire(t);
+ switch(d.t){
+ case 'gseat':{const s=d.s|0;if(s<0||s>=GSEATS.length)break;if(gClaimT[gid]&&t-gClaimT[gid]<8)break;gClaimT[gid]=t;
+  const cur=seatOf(gid),o=gseats[s];if(o&&o.gid!==gid)break;const name=gNameIn(d.gn);
+  if(cur>=0&&cur!==s)gseats[cur]=null;
+  if(cur===s&&o){o.last=t;o.name=name;break;}
+  gseats[s]={gid,name,since:t,last:t,note:''};
+  addFeed(t,name+' (guest) took seat '+(s+1)+': '+GSEATS[s].nm.toLowerCase(),'good');
+  if(live){if(gid===GID){gPend=null;gEntered();}else gArrive(name,s);}
+  break;}
+ case 'ghb':{const k=seatOf(gid);if(k>=0)gseats[k].last=t;break;}
+ case 'gleave':{const k=seatOf(gid);if(k<0)break;const o=gseats[k];gseats[k]=null;addFeed(t,o.name+' (guest) waved goodbye and left seat '+(k+1));if(live&&gid!==GID)R.speech={text:pick(['bye guest. I will clean your chair.','guest gone. chair: mine.']),until:now+2};break;}
+ case 'gnote':{const k=seatOf(gid);if(k<0||eaten.has(m.id))break;const x=gText(d.x);if(!x)break;
+  const L=gLog[gid]||(gLog[gid]=[]);while(L.length&&t-L[0]>3600)L.shift();if(L.length>=5||(L.length&&t-L[L.length-1]<30))break;
+  while(gAll.length&&t-gAll[0]>600)gAll.shift();if(gAll.length>=12)break;L.push(t);gAll.push(t);
+  const o=gseats[k];o.last=t;o.note=x;
+  notes.set(m.id,{id:m.id,t,w:'guest',gn:o.name,x,ghost:false,gu:true,fresh:live});notesDirty=true;saveNotes();
+  addFeed(t,o.name+' (guest) stuck a note on the wall');
+  if(live&&gid!==GID){banner('Guest note from '+o.name);bleep(1100);if(!vo('new_message',{queue:true})&&rnd()<.5)say(pick([CH,MI]),pick(['A guest left a note. I read it. Twice.','Guest note detected. The Roomba is interested.','We have fans. Act natural.']));}
+  break;}
+ }}
+function gArrive(name,s){banner('GUEST IN THE BASEMENT: '+name+' took seat '+(s+1));tone(660,.12,'square',.05);tone(523,.18,'square',.05,.14);glitch(.15);
+ later(.9,()=>{const r=rnd();if(r<.34)R.speech={text:pick(['new human detected. scanning for cables.','guest. do you have cables. asking for me.','welcome. I am the king.']),until:now+2.6};
+  else if(r<.67){if(speaking()<2)say(CH,pick(['A guest! Everyone act normal.','Welcome, '+name+'. Please do not feed the Roomba.','Hi '+name+'. It works on my machine. Probably.']));}
+  else if(speaking()<2)say(U,pick(['Welcome, '+name+'! Mind the zombie.','Oh hi '+name+'! Coffee is on the left.','Expect the unexpected, '+name+'.']));});}
+function gEntered(){const k=seatOf(GID);if(k<0)return;guestMode=true;spectator=true;started=true;startEl.classList.add('gone');gHbT=0;gWas=true;
+ banner('Welcome to the basement, '+gName+'. Seat '+(k+1)+' is yours.');jingle();
+ later(1,()=>{if(speaking()<2)say(pick([CH,U]),pick(['Hi '+gName+'! Leave us a note on the wall.','A guest! '+gName+', the Roomba says hi.','Welcome '+gName+'. Do not touch the cables.']));});
+ updYou();updGuests();notesDirty=true;gForm(false);}
+function gpub(d,keep){d.g='gtb1';d.w='guest';d.gid=GID;d.gn=gName;const body=JSON.stringify(d);
+ return fetch(NTFY,{method:'POST',body,keepalive:!!keep}).then(r=>{if(!r.ok)throw new Error(r.status===429?'ntfy says slow down':'HTTP '+r.status);return r.json();}).then(m=>{setNet(true);if(m&&m.time)setSkew(m.time);return m;});}
+function gClaim(s){const n=gCut(gSan($('gName').value),16).trim();
+ if(Array.from(n).length<2){gMsg('Type a name first (2 to 16 characters).');$('gName').focus();return;}
+ if(gReserved(n)){gMsg('That name belongs to the crew. The Roomba checked. Pick your own.');return;}
+ gExpire(snow());if(s==null||s<0){gMsg('Tap a free seat first.');return;}if(gseats[s]&&gseats[s].gid!==GID){gMsg('Seat '+(s+1)+' is taken. Pick a free one.');return;}
+ if(gPend&&Date.now()-gPend.at<9000){gMsg('Hold on, the Roomba is still dusting your seat...');return;}
+ gName=n;LS.set('gname',n);setSound(true);tone(880,.06,'square',.04);
+ if(seatOf(GID)===s){gpub({t:'ghb'});gEntered();return;}
+ gPend={s,at:Date.now()};gMsg('Taking seat '+(s+1)+'...');
+ gpub({t:'gseat',s}).then(m=>{if(m&&m.id&&!seen.has(m.id)){setTimeout(()=>{if(gPend&&!seen.has(m.id)){ingest(m,true);}},4500);}}).catch(e=>{gPend=null;gMsg('Could not reach the basement ('+(e&&e.message||e)+'). Try again in a moment.');});
+ setTimeout(()=>{if(gPend&&gPend.s===s&&seatOf(GID)!==s){gPend=null;gMsg('Someone grabbed seat '+(s+1)+' a millisecond earlier. Pick another.');gRenderPick();}},9500);}
+function gLeave(quiet){if(seatOf(GID)>=0){gpub({t:'gleave'},true).then(m=>ingest(m,true)).catch(()=>{});const k=seatOf(GID);if(k>=0)gseats[k]=null;}guestMode=false;gWas=false;if(!quiet)toast('You left your guest seat. Come back any time.');updYou();updGuests();}
+function gMsg(t){$('gSub').textContent=t;}
+function gRenderPick(){const el=$('gSeatPick');el.textContent='';gExpire(snow());const mine=seatOf(GID);
+ if(gPick==null||(gseats[gPick]&&gseats[gPick].gid!==GID))gPick=mine>=0?mine:gseats.findIndex(o=>!o);
+ GSEATS.forEach((S,k)=>{const o=gseats[k],b=document.createElement('button');b.type='button';const taken=o&&o.gid!==GID;b.disabled=!!taken;b.className=(k===gPick?'cur':'')+(taken?' taken':'');
+  const a=document.createElement('b');a.textContent='SEAT '+(k+1);b.appendChild(a);const c=document.createElement('span');c.textContent=taken?o.name:o?'yours':S.nm;b.appendChild(c);
+  b.onclick=()=>{gPick=k;gRenderPick();};el.appendChild(b);});
+ const free=gseats.filter(o=>!o).length;$('gGo').disabled=!free&&mine<0;$('gGo').textContent=mine>=0?'BACK TO MY SEAT':free?'TAKE SEAT '+(gPick+1):'ALL SEATS TAKEN';
+ if(!free&&mine<0)gMsg('All '+GSEATS.length+' guest seats are taken. Seats free up when guests leave. Try again soon, or just look around.');}
+function gForm(on){$('crewPick').hidden=on;$('gForm').hidden=!on;if(on){if(!$('gName').value)$('gName').value=gName;gMsg('Guests can sit, watch and leave notes on the wall. Missions are crew only.');gRenderPick();}}
+function gOpen(seat){if(started&&!spectator&&me){toast('You are crew. Guest seats are for visitors.');return;}if(seat!=null&&!(gseats[seat]&&gseats[seat].gid!==GID))gPick=seat;started=false;startEl.classList.remove('gone');gForm(true);$('stage').scrollIntoView({behavior:'smooth',block:'nearest'});}
+let gSig='';
+function updGuests(){const el=$('gList');if(!el)return;const t=snow();const crew=!!(started&&!spectator&&me),sm=seatedMe();
+ const sig=gseats.map(o=>o?o.gid+o.name+Math.round((t-o.since)/60):'-').join('|')+crew+sm;if(sig===gSig)return;const ch=gSig.split('|').slice(0,GSEATS.length).join('|')!==sig.split('|').slice(0,GSEATS.length).join('|');gSig=sig;el.textContent='';if(ch&&!$('gForm').hidden&&!gPend)gRenderPick();
+ GSEATS.forEach((S,k)=>{const o=gseats[k],d=document.createElement('div');d.className='grow'+(o?'':' free');const a=document.createElement('span');a.className='gn';a.textContent=(k+1)+'';d.appendChild(a);
+  const b=document.createElement('span');if(o){b.textContent=o.name+(o.gid===GID?' (you)':'')+' \u00b7 '+S.nm.toLowerCase()+' \u00b7 '+Math.max(1,Math.round((t-o.since)/60))+'m';}else b.textContent='free \u00b7 '+S.nm.toLowerCase();d.appendChild(b);
+  if(!o&&!(started&&!spectator&&me)&&!seatedMe()){const btn=document.createElement('button');btn.className='lnk';btn.textContent='sit here';btn.onclick=()=>gOpen(k);d.appendChild(btn);}
+  el.appendChild(d);});
+ const n=gseats.filter(Boolean).length;$('gHead').textContent=n+' of '+GSEATS.length+' guest seats taken'+(n>=GSEATS.length?'. Full house.':'');
+ $('gBtn').hidden=!!(started&&!spectator&&me);$('gBtn').textContent=seatedMe()?'Leave my guest seat':'Sit as a guest';
+ $('noteIn').maxLength=seatedMe()?120:160;$('noteIn').placeholder=seatedMe()?'Leave a guest note (max 120)\u2026':'Leave a sticky note for the Tribe\u2026';}
+function gTickF(dt){gTick+=dt;if(gTick<1)return;gTick=0;const t=snow();gExpire(t);const sat=seatedMe();
+ if(guestMode&&gWas&&!sat&&!gPend){gWas=false;guestMode=false;toast('Your guest seat timed out. The Roomba needed the chair. Sit again any time.');updYou();}
+ if(sat){gWas=true;if(visible()){gHbT+=1;if(gHbT>=GHB){gHbT=0;gpub({t:'ghb'}).then(m=>ingest(m,true)).catch(()=>{});}}}}
+function drawGuests(items){GSEATS.forEach((S,k)=>{const o=gseats[k];
+ items.push({k:S.i+S.j-.05,f:()=>{const wob=S.wobble?Math.round(Math.sin(now*9))*.5:0;const top='#c8c8d8',l='#8a8aa0',r='#6a6a80';
+  C.save();if(wob)C.translate(wob,0);
+  for(const q of [[-.18,-.18],[.14,-.18],[-.18,.14],[.14,.14]]){const s=P(S.i+q[0],S.j+q[1]);rect(s[0],s[1]-4,1,4,'#55556a');}
+  box(S.i-.22,S.j-.22,.44,.44,1,4,o?'#d8d0e8':top,l,r);box(S.i-.22,S.j-.22,.44,.07,8,5,top,l,r);
+  if(!o){if(!(started&&!spectator&&me)&&Math.floor(now*1.2+k)%3===0){const s=P(S.i,S.j);txt('+',s[0]-1,s[1]-14,'#3ff0e0');}C.restore();return;}
+  const s=P(S.i,S.j),sx=Math.round(s[0]),sy=Math.round(s[1]);const pal=gPal(o.gid,k);if(((now+k)%5)<.15)pal.e=pal.s;
+  const top2=sy-20,bob=Math.floor(now*2+k)%2?1:0;spr(LEGS.sit,pal,sx-4,top2+13,S.j>6);spr(GUEST_UP,pal,sx-4,top2+bob,S.j>6);C.restore();}});});}
+const gLab=s=>{const u=String(s).toUpperCase().replace(/[^A-Z0-9 .!?\-_'#+]/g,'').trim().slice(0,6).trim();return u||'GUEST';};
+function drawGuestLabels(){GSEATS.forEach((S,k)=>{const o=gseats[k];if(!o)return;const s=P(S.i,S.j),sx=Math.round(s[0]),sy=Math.round(s[1]);const nm=gLab(o.name),w=nm.length*4-1;
+  const y=S.up?sy-30:sy+3;rect(sx-w/2-1,y-1,w+2,7,'rgba(0,0,0,.6)');txt(nm,Math.round(sx-w/2),y,o.gid===GID?'#ffe14a':'#f4efe2');rect(sx-w/2-1,y+6,w+2,1,'#ff3fd1');});}
+function guestHit(lx,ly){for(let k=0;k<GSEATS.length;k++){const s=P(GSEATS[k].i,GSEATS[k].j);if(Math.hypot(lx-s[0],ly-(s[1]-8))<8)return k;}return -1;}
+function guestThought(k){const o=gseats[k],S=GSEATS[k];
+ if(!o){thoughtEl.innerHTML='<b>Guest seat '+(k+1)+'</b><div class="mood">'+esc(S.nm)+' &middot; free</div>'+(started&&!spectator&&me?'Waiting for a visitor. The Roomba keeps it warm.':'Tap again to sit here.')+'<span class="dots"></span>';}
+ else{const mins=Math.max(1,Math.round((snow()-o.since)/60));thoughtEl.innerHTML='<b>'+esc(o.name)+' <span style="background:#ff3fd1;color:#fff;font-size:8px;padding:1px 3px">GUEST</span></b><div class="mood">Seat '+(k+1)+', '+esc(S.nm.toLowerCase())+' &middot; here '+mins+'m</div>'+esc(o.note?'"'+o.note+'"':pick(GLINES))+'<span class="dots"></span>';}
+ thoughtEl.classList.add('on');selected=null;thoughtT={o:{i:S.i,j:S.j,state:'couch'},until:now+6};tone(1300,.05,'square',.03);}
 // ---------- DOM: start / identity ----------
 const startEl=$('start'),picks=$('picks');
 HUM.forEach(n=>{const b=document.createElement('button');b.textContent=n;b.dataset.me=n;b.style.background=NCOL[n];b.onclick=()=>{choose(n);enter(true);};picks.appendChild(b);});
 function refreshStart(){startEl.classList.toggle('known',!!me);[...picks.children].forEach(b=>b.classList.toggle('cur',b.dataset.me===me));
- $('startSub').textContent=me?'Welcome back, '+me+'. Enter, or pick another name.':'Tap your name to enter (sound on). It is saved on this device.';$('goSound').textContent=me?'ENTER AS '+me.toUpperCase():'TAP TO START';}
-function choose(n){if(me!==n){saveST();me=n;LS.set('me',n);ST=Object.assign(freshStats(),LS.get('st_'+n,{}));voidUsed=false;}spectator=false;}
+ $('startSub').textContent=me?'Welcome back, '+me+'. Enter, or pick another name.':'Tap your name to enter (sound on). It is saved on this device.';$('goSound').textContent=me?'ENTER AS '+me.toUpperCase():'TAP TO START';gForm(false);$('goGuest').textContent=seatOf(GID)>=0?'BACK TO MY GUEST SEAT':'I\u2019M A GUEST \u00b7 PICK A SEAT';}
+function choose(n){if(guestMode||seatOf(GID)>=0)gLeave(true);if(me!==n){saveST();me=n;LS.set('me',n);ST=Object.assign(freshStats(),LS.get('st_'+n,{}));voidUsed=false;}spectator=false;}
 function enter(sound){if(sound){setSound(true);jingle();}startEl.classList.add('gone');started=true;if(!me)spectator=true;
  if(me&&!spectator){const away=Date.now()/1000-LS.get('seen_'+me,0);if(LS.get('seen_'+me,0)&&away>3600){const hrs=Math.floor(away/3600);setTimeout(()=>{R.speech={text:'you were gone '+hrs+'h. I ate cables.',until:now+3.5};},1200);}
   const lj=LS.get('join_'+me,0);if(Date.now()/1000-lj>300){LS.set('join_'+me,Date.now()/1000);publish({t:'join',h:Math.round(ST.health),f:Math.round(ST.hunger)});}else hb();}
  updYou();notesDirty=true;}
 $('goSound').onclick=()=>enter(true);$('goQuiet').onclick=()=>enter(false);$('goLook').onclick=()=>{spectator=true;enter(false);};
+$('goGuest').onclick=()=>{gForm(true);};$('gBack').onclick=()=>gForm(false);$('gGo').onclick=()=>gClaim(gPick);$('gName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();gClaim(gPick);}});
+$('gBtn').onclick=()=>{if(seatedMe())gLeave(false);else gOpen(null);};
 function openSwitch(){saveST();flush();started=false;startEl.classList.remove('gone');refreshStart();}
 $('switchMe').onclick=openSwitch;$('banSwitch').onclick=()=>{openSwitch();$('banOv').hidden=true;};
 refreshStart();
 
 // ---------- DOM: notes ----------
 let lastPost=0;
-$('noteForm').onsubmit=e=>{e.preventDefault();const x=$('noteIn').value.trim();if(!x)return;if(!started||!me||spectator){toast('Pick who you are first (tap switch).');return;}if(bannedMe()){toast('Banned. Use the message from the void.');return;}
+$('noteForm').onsubmit=e=>{e.preventDefault();const x=$('noteIn').value.trim();if(!x)return;
+ if(guestMode||(spectator&&started)){if(!seatedMe()){toast('Grab a guest seat first, then you can leave a note.');gOpen(null);return;}const g=gText(x);if(!g){toast('The Roomba ate that whole note. Try words instead of links.');return;}
+  const w=Date.now()/1000;let L=(LS.get('gtimes',[])||[]).filter(v=>w-v<3600);if(w-gLastNote<45){toast('Easy, the corkboard needs a breather. '+Math.ceil(45-(w-gLastNote))+'s');return;}if(L.length>=5){toast('Five guest notes an hour is the limit. The Roomba is counting.');return;}
+  gLastNote=w;LS.set('glast',w);L.push(w);LS.set('gtimes',L);$('noteIn').value='';tone(1200,.05,'square',.04);gpub({t:'gnote',x:g}).then(m=>ingest(m,true)).catch(err=>{toast('Your note got lost in the cables ('+(err&&err.message||err)+'). Try again.');gLastNote=0;LS.set('glast',0);});return;}
+ if(!started||!me||spectator){toast('Pick who you are first (tap switch).');return;}if(bannedMe()){toast('Banned. Use the message from the void.');return;}
  const w=Date.now()/1000;if(w-lastPost<8){toast('Slow down, the corkboard is full of pins. '+Math.ceil(8-(w-lastPost))+'s');return;}lastPost=w;$('noteIn').value='';publish({t:'note',x:x.slice(0,160)});tone(1200,.05,'square',.04);if(me==='Unity')say(U,'Sticky note deployed.');};
 $('voidForm').onsubmit=e=>{e.preventDefault();const x=$('voidIn').value.trim();if(!x||!bannedMe())return;if(voidUsed){$('voidMsg').textContent='The void only accepts one message per ban.';return;}voidUsed=true;$('voidIn').value='';publish({t:'note',x:x.slice(0,120),gh:1});$('voidMsg').textContent='Sent. It is on the wall now, a bit spooky.';};
 let armed=null;
 function renderNotes(){const el=$('notes');el.textContent='';const arr=[...notes.values()].sort((a,b)=>b.t-a.t).slice(0,60);
  if(!arr.length){const d=document.createElement('div');d.className='empty';d.textContent='The wall is empty. Be the first to stick a note on it.';el.appendChild(d);return;}
- for(const n of arr){const d=document.createElement('div');d.className='note'+(n.ghost?' ghost':'')+(n.ag?' agent':'')+(n.fresh?' fresh':'');d.style.background=n.ghost?'':NCOL[n.w];n.fresh=false;
+ for(const n of arr){const d=document.createElement('div');d.className='note'+(n.ghost?' ghost':'')+(n.ag?' agent':'')+(n.gu?' guest':'')+(n.fresh?' fresh':'');d.style.background=n.ghost?'':n.gu?GCOL:NCOL[n.w];n.fresh=false;
   const tx=document.createElement('div');tx.textContent=armed===n.id?'Tap again to feed this to the Roomba':n.x;d.appendChild(tx);
-  const by=document.createElement('span');by.className='by';if(n.ag){const a=document.createElement('span');a.className='ag';a.textContent='AGENT';by.appendChild(a);}by.appendChild(document.createTextNode('- '+n.w+(n.ghost?' (from the void)':'')+' \u00b7 '+ago(n.t)));d.appendChild(by);
+  const by=document.createElement('span');by.className='by';if(n.ag){const a=document.createElement('span');a.className='ag';a.textContent='AGENT';by.appendChild(a);}if(n.gu){const a=document.createElement('span');a.className='gt';a.textContent='GUEST';by.appendChild(a);}by.appendChild(document.createTextNode('- '+(n.gu?n.gn:n.w)+(n.ghost?' (from the void)':'')+' \u00b7 '+ago(n.t)));d.appendChild(by);
   d.onclick=()=>{if(!started||!me||spectator||bannedMe()){nudge();return;}if(armed!==n.id){armed=n.id;renderNotes();setTimeout(()=>{if(armed===n.id){armed=null;renderNotes();}},2500);return;}armed=null;
    if(String(n.id).startsWith('local-')){notes.delete(n.id);renderNotes();return;}publish({t:'eat',id:n.id});};el.appendChild(d);}}
 function renderFeed(){const el=$('feed');el.textContent='';const arr=feed.slice().sort((a,b)=>b.t-a.t).slice(0,40);
@@ -738,9 +879,9 @@ function renderFeed(){const el=$('feed');el.textContent='';const arr=feed.slice(
 // ---------- DOM: you, presence, mission ----------
 const YB=[['health','Health','#ff5a7a'],['hunger','Hunger','#ffb020'],['coffee','Coffee','#c08040']];
 $('youBars').innerHTML=YB.map(b=>'<div class="bar" data-y="'+b[0]+'"><span>'+b[1]+'</span><span class="seg">'+'<i></i>'.repeat(10)+'</span><span class="v"></span></div>').join('')+'<div class="strike" id="strikes"></div>';
-function updYou(){$('youName').textContent=me&&!spectator?me+' ('+(me==='Dani'||me==='Tom'?'he':'she')+')':'just looking';
+function updYou(){const gs=seatOf(GID);$('youName').textContent=me&&!spectator?me+' ('+(me==='Dani'||me==='Tom'?'he':'she')+')':guestMode&&gs>=0?gName+' (guest, seat '+(gs+1)+')':'just looking';
  for(const b of YB){const el=$('youBars').querySelector('[data-y="'+b[0]+'"]'),v=Math.round(ST[b[0]]),n=Math.round(v/10);el.querySelectorAll('i').forEach((s,q)=>s.style.background=q<n?(v<25&&b[0]!=='coffee'&&Math.floor(now*3)%2?'#fff':b[2]):'#2a2346');el.querySelector('.v').textContent=v;}
- $('strikes').textContent=me&&!spectator?'Ignored-mission strikes: '+(ST.strikes>=1?'X':'-')+' -  (2 in a row = short ban)'+(ST.coffee>=70?'  |  CAFFEINATED: taps count x2':''):'Pick a name (switch) to play.';}
+ $('strikes').textContent=me&&!spectator?'Ignored-mission strikes: '+(ST.strikes>=1?'X':'-')+' -  (2 in a row = short ban)'+(ST.coffee>=70?'  |  CAFFEINATED: taps count x2':''):guestMode&&gs>=0?'You are a guest: watch, tap things, leave notes on the wall. Missions and bans are crew only.':'Crew: pick a name (switch) to play. Visitors: grab a guest seat.';}
 const presEls={};
 PEOPLE.forEach(p=>{const d=document.createElement('div');d.className='pres';p.row.children[1].appendChild(d);presEls[p.name]=d;});
 function updPres(){const t=snow();for(const n of HUM){const d=presEls[n],p=pres[n],b=banInfo(n);d.textContent='';const s=document.createElement('span');
@@ -749,10 +890,10 @@ function updPres(){const t=snow();for(const n of HUM){const d=presEls[n],p=pres[
  else if(p&&t-p.t<400){s.className='on';s.textContent='\u25cf in the basement'+(p.h!=null?' \u00b7 health '+p.h+' \u00b7 hunger '+p.f:'');d.appendChild(s);}
  else{s.className='off';s.textContent=p?'last seen '+ago(p.t):'not here yet';d.appendChild(s);}}
  const n=HUM.filter(w=>pres[w]&&t-pres[w].t<400&&!banInfo(w)).length,el=$('net');
- el.className='net '+(netOk?'ok':netOk===false?'bad':'');el.textContent=netOk?'online \u00b7 '+n+' in the basement':netOk===false?(netWhy.indexOf('offline')===0?netWhy:'offline ('+netWhy+'), playing solo'):'connecting to the basement...';}
+ el.className='net '+(netOk?'ok':netOk===false?'bad':'');const gn=gseats.filter(Boolean).length;el.textContent=netOk?'online \u00b7 '+n+' in the basement'+(gn?' \u00b7 '+gn+' guest'+(gn>1?'s':''):''):netOk===false?(netWhy.indexOf('offline')===0?netWhy:'offline ('+netWhy+'), playing solo'):'connecting to the basement...';}
 function updMission(){const x=MT(),m=x.m,el=$('mBtn');
  if(x.active){$('mTag').textContent=x.done?'MISSION COMPLETE':'MISSION';$('mTitle').textContent=m.title;$('mDesc').textContent=x.done?m.done:m.desc;const left=missEnd(x.s)-x.t;$('mTimer').textContent=x.done?'done':fmtDur(left);$('mTimer').classList.toggle('hurry',!x.done&&left<30);
-  const p=Math.min(progOf(x.s),m.need);$('mBar').style.width=(p/m.need*100)+'%';$('mNum').textContent=p+' / '+m.need+' fixes';el.disabled=x.done||!canPlay();el.textContent=x.done?'FIXED. FOR NOW.':!started||!me||spectator?'PICK A NAME TO HELP':bannedMe()?'BANNED':m.btn;
+  const p=Math.min(progOf(x.s),m.need);$('mBar').style.width=(p/m.need*100)+'%';$('mNum').textContent=p+' / '+m.need+' fixes';el.disabled=x.done||!canPlay();el.textContent=x.done?'FIXED. FOR NOW.':!started||!me||spectator?(guestMode?'CREW ONLY. YOU ARE A GUEST':'PICK A NAME TO HELP'):bannedMe()?'BANNED':m.btn;
   const c=contrib[x.s]||{};$('mWho').textContent=Object.keys(c).length?'Fixes so far: '+Object.keys(c).sort((a,b)=>c[b]-c[a]).map(k=>k+' '+c[k]).join(', '):'Nobody has helped yet. The Roomba is judging.';}
  else{$('mTag').textContent=x.done?'LAST MISSION: COMPLETE':'LAST MISSION: FAILED';$('mTitle').textContent=x.done?'Breather. Something is about to go wrong.':m.fail;$('mDesc').textContent=x.done?m.done:'Breathe. Eat a snack. Another crisis is coming.';$('mTimer').textContent='next '+fmtDur((x.s+1)*SLOT-x.t);$('mTimer').classList.remove('hurry');
   $('mBar').style.width=Math.min(100,progOf(x.s)/m.need*100)+'%';$('mNum').textContent=Math.min(progOf(x.s),m.need)+' / '+m.need+' fixes';el.disabled=true;el.textContent='RECOVERING...';$('mWho').textContent=x.done?'MVP: '+mvp(x.s):'';}
@@ -793,14 +934,15 @@ window.v2tick=function(dt){const t=snow(),s=slotOf(t),m=mFor(s),act=t<missEnd(s)
   if(ST.health<25&&!warnH){warnH=true;toast('Health is low. Eat, nap, or finish a mission.');if(ST.health>=1)vo('low_health',{queue:true});}if(ST.health>35)warnH=false;
   if(ST.health<1)banMe('health',240);else if(ST.hunger<1)banMe('hunger',180);
   hbT+=dt;if(hbT>150)hb();}
- uiT+=dt;if(uiT>.25){uiT=0;
+ gTickF(dt);
+ uiT+=dt;if(uiT>.25){uiT=0;updGuests();
   if(b){const i=banInfo(me);$('banOv').hidden=false;$('banWho').textContent=me+', you have been banned from the Global Tribe Basement.';$('banReason').textContent=i.r;$('banClock').textContent=fmtDur(i.until-t);}
   else if(!$('banOv').hidden)$('banOv').hidden=true;
   if(me&&started)LS.set('seen_'+me,Date.now()/1000);saveST();
   updMission();updYou();updPres();if(notesDirty){notesDirty=false;renderNotes();}if(feedDirty||Math.floor(t)%15===0){feedDirty=false;renderFeed();}}};
 document.addEventListener('visibilitychange',()=>{if(visible()&&canPlay()&&hbT>60)hb();if(!visible())flush();});
-window.addEventListener('pagehide',()=>{flush();saveST();});
-window.__gtb2={snow,MT,ST:()=>ST,me:()=>me,notes,bans,banInfo,banMe,work,contrib,feed,pres,ready:()=>ready,netOk:()=>netOk,doWork,flush,topic:TOPIC,setStat:(k,v)=>{ST[k]=v;},mFor,MISSIONS};
+window.addEventListener('pagehide',()=>{flush();saveST();if(seatOf(GID)>=0)gLeave(true);});
+window.__gtb2={gseats,GID:()=>GID,guestMode:()=>guestMode,gExpire,snow,MT,ST:()=>ST,me:()=>me,notes,bans,banInfo,banMe,work,contrib,feed,pres,ready:()=>ready,netOk:()=>netOk,doWork,flush,topic:TOPIC,setStat:(k,v)=>{ST[k]=v;},mFor,MISSIONS};
 boot();
 })();
 </script>
