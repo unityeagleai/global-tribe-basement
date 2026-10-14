@@ -91,6 +91,8 @@ body{padding:10px 10px 40px}
 .note:nth-child(odd){transform:rotate(-1.2deg)}.note:nth-child(3n){transform:rotate(1.4deg)}
 .note .by{font-weight:bold;font-size:10px;display:block;margin-top:4px;opacity:.75}
 .note.ghost{background:#1c1830!important;color:#c9b8ff;border:1px dashed #7a6ad0}
+.note.agent{outline:2px dashed rgba(26,20,38,.55);outline-offset:-4px}
+.note .ag{display:inline-block;background:#1a1426;color:#ffe9a8;font-size:8px;padding:1px 3px;margin-right:4px;letter-spacing:1px;vertical-align:1px}
 .note.fresh{animation:pop .5s steps(4)}
 @keyframes pop{0%{transform:scale(.4)}100%{transform:scale(1)}}
 .noteform{display:flex;gap:6px}
@@ -532,7 +534,9 @@ const NTFY='https://ntfy.sh/'+TOPIC;
 const FAST=QS.get('fast')==='1';
 const SLOT=FAST?60:360,ACTIVE=FAST?45:300;
 const HUM=['Dani','Tom','Dagmar','Unity'];
-const NCOL={Dani:'#9ff0c0',Tom:'#a8d4ff',Dagmar:'#ffc0e6',Unity:'#d9b8ff'};
+// agents (AI crew) may only post sticky notes: not pickable, no presence, no missions/bans
+const AGENTS=['Charlie','Miles'];
+const NCOL={Dani:'#9ff0c0',Tom:'#a8d4ff',Dagmar:'#ffc0e6',Unity:'#d9b8ff',Charlie:'#ffb86b',Miles:'#f6f07a'};
 const $=id=>document.getElementById(id);
 const LS={get(k,d){try{const v=localStorage.getItem('gtb2_'+TOPIC+'_'+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('gtb2_'+TOPIC+'_'+k,JSON.stringify(v));}catch(e){}}};
 const num=v=>{v=+v;return isFinite(v)?clamp(Math.round(v),0,100):null;};
@@ -573,15 +577,18 @@ const notes=new Map(),eaten=new Set(LS.get('eaten',[]));
 const pres={},bans={},feed=[];
 let notesDirty=true,feedDirty=true;
 function addFeed(t,txt,cls){feed.push({t,txt,cls:cls||''});if(feed.length>150)feed.splice(0,feed.length-150);feedDirty=true;}
-for(const n of LS.get('notes',[])){if(n&&n.id&&HUM.includes(n.w)&&!eaten.has(n.id)&&Date.now()/1000-n.t<7*86400){notes.set(n.id,{id:n.id,t:n.t,w:n.w,x:String(n.x).slice(0,160),ghost:!!n.ghost});}}
+for(const n of LS.get('notes',[])){if(n&&n.id&&(HUM.includes(n.w)||AGENTS.includes(n.w))&&!eaten.has(n.id)&&Date.now()/1000-n.t<7*86400){notes.set(n.id,{id:n.id,t:n.t,w:n.w,x:String(n.x).slice(0,160),ghost:!!n.ghost&&!AGENTS.includes(n.w),ag:AGENTS.includes(n.w)});}}
 function saveNotes(){LS.set('notes',[...notes.values()].filter(n=>!String(n.id).startsWith('local-')).sort((a,b)=>b.t-a.t).slice(0,80).map(n=>({id:n.id,t:n.t,w:n.w,x:n.x,ghost:n.ghost})));LS.set('eaten',[...eaten].slice(-300));}
 function ingest(m,live){
  if(!m||!m.id)return;
  if(m.event==='open'||m.event==='keepalive'){if(m.time)setSkew(m.time);return;}
  if(m.event!=='message'||seen.has(m.id))return;seen.add(m.id);if(!m.local)lastId=m.id;
  let d;try{d=JSON.parse(m.message);}catch(e){return;}
- if(!d||d.g!=='gtb1'||!HUM.includes(d.w))return;
+ if(!d||d.g!=='gtb1')return;
+ const ag=AGENTS.includes(d.w);
+ if(!HUM.includes(d.w)&&!(ag&&d.t==='note'))return;
  const t=+m.time||snow(),w=d.w;
+ if(ag){agentNote(m,d,t,w,live);return;}
  const p=pres[w]||(pres[w]={t:0});if(t>p.t)p.t=t;
  switch(d.t){
  case 'note':{if(eaten.has(m.id))break;const x=String(d.x||'').slice(0,160).trim();if(!x)break;notes.set(m.id,{id:m.id,t,w,x,ghost:!!d.gh,fresh:live});notesDirty=true;saveNotes();
@@ -594,6 +601,11 @@ function ingest(m,live){
  case 'bail':{const who=d.who,b=bans[who];if(!HUM.includes(who)||!b||b.bailers.has(w)||w===who||t>b.until)break;b.bailers.add(w);b.until-=45;addFeed(t,w+' bribed the Roomba: '+who+"'s ban is 45 seconds shorter",'good');if(live)banner(w+' bailed out '+who);break;}
  case 'chaos':{const ev=EVENTS.find(x=>x.id===d.e);if(!ev)break;addFeed(t,w+' caused chaos: '+ev.text,'chaos');if(live&&w!==me){banner(w+' pressed the chaos button');fireEvent(ev.id);nextEvent=now+18;}break;}
  }}
+function agentNote(m,d,t,w,live){if(eaten.has(m.id))return;const x=String(d.x||'').slice(0,160).trim();if(!x)return;
+ notes.set(m.id,{id:m.id,t,w,x,ghost:false,ag:true,fresh:live});notesDirty=true;saveNotes();
+ addFeed(t,w+' (agent) stuck a note on the wall');
+ if(live){banner('New sticky note from '+w+' (agent)');bleep(900);const c=w==='Charlie'?CH:MI;
+  if(!vo('new_message',{queue:true,speaker:w==='Charlie'?'unity':null})&&rnd()<.6)say(c,w==='Charlie'?'I left a note on the wall. You are welcome.':'Note posted. Directly to main.');}}
 function setNet(ok,why){netOk=ok;if(why)netWhy=why;}
 function publish(d){d.g='gtb1';d.w=me;const body=JSON.stringify(d);
  return fetch(NTFY,{method:'POST',body}).then(r=>{if(!r.ok)throw new Error(r.status===429?'ntfy says slow down':'HTTP '+r.status);return r.json();})
@@ -714,9 +726,9 @@ $('voidForm').onsubmit=e=>{e.preventDefault();const x=$('voidIn').value.trim();i
 let armed=null;
 function renderNotes(){const el=$('notes');el.textContent='';const arr=[...notes.values()].sort((a,b)=>b.t-a.t).slice(0,60);
  if(!arr.length){const d=document.createElement('div');d.className='empty';d.textContent='The wall is empty. Be the first to stick a note on it.';el.appendChild(d);return;}
- for(const n of arr){const d=document.createElement('div');d.className='note'+(n.ghost?' ghost':'')+(n.fresh?' fresh':'');d.style.background=n.ghost?'':NCOL[n.w];n.fresh=false;
+ for(const n of arr){const d=document.createElement('div');d.className='note'+(n.ghost?' ghost':'')+(n.ag?' agent':'')+(n.fresh?' fresh':'');d.style.background=n.ghost?'':NCOL[n.w];n.fresh=false;
   const tx=document.createElement('div');tx.textContent=armed===n.id?'Tap again to feed this to the Roomba':n.x;d.appendChild(tx);
-  const by=document.createElement('span');by.className='by';by.textContent='- '+n.w+(n.ghost?' (from the void)':'')+' \u00b7 '+ago(n.t);d.appendChild(by);
+  const by=document.createElement('span');by.className='by';if(n.ag){const a=document.createElement('span');a.className='ag';a.textContent='AGENT';by.appendChild(a);}by.appendChild(document.createTextNode('- '+n.w+(n.ghost?' (from the void)':'')+' \u00b7 '+ago(n.t)));d.appendChild(by);
   d.onclick=()=>{if(!started||!me||spectator||bannedMe()){nudge();return;}if(armed!==n.id){armed=n.id;renderNotes();setTimeout(()=>{if(armed===n.id){armed=null;renderNotes();}},2500);return;}armed=null;
    if(String(n.id).startsWith('local-')){notes.delete(n.id);renderNotes();return;}publish({t:'eat',id:n.id});};el.appendChild(d);}}
 function renderFeed(){const el=$('feed');el.textContent='';const arr=feed.slice().sort((a,b)=>b.t-a.t).slice(0,40);
